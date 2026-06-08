@@ -78,6 +78,10 @@ static Ref_t create_detector(Detector& description, xml_h e, SensitiveDetector s
 
   // Hands-on 1: create the shape and Volume for the CaloLayer
   //
+  Box CaloLayer(CaloLayerX / 2., CaloLayerY / 2.0, CaloLayerZ / 2.0);
+  Volume CaloLayerVol("CaloLayerVol", CaloLayer, description.material(x_calolayer.attr<std::string>(_U(material))));
+  CaloLayerVol.setVisAttributes(description, x_calolayer.visStr());
+  
 
   // Hands-on 1 solution
   // Uncomment the line below to include the solution
@@ -85,7 +89,7 @@ static Ref_t create_detector(Detector& description, xml_h e, SensitiveDetector s
 
   // Once completed the Hands-on 1 uncomment also the block below
   // and check that your Volume object has the same name "CaloLayerVol"
-  /*
+
   // Place N calorimeter layers inside the CaloVol.
   // Hint: use NumberOfLayers defined above.
   //
@@ -95,11 +99,24 @@ static Ref_t create_detector(Detector& description, xml_h e, SensitiveDetector s
         Position(0., 0., -CaloZ / 2. + CaloLayerZ / 2. + i * CaloLayerZ));
     CaloLayerPlaced.addPhysVolID("calolayer", i + 1);
   }
-  */
+  
 
   // Hands-on 2: create and place and absorber layer and a
   // sensitive layer inside CaloLayerVol
   //
+
+  Box AbsLayer(AbsLayerX / 2., AbsLayerY / 2.0, AbsLayerZ / 2.0);
+  Volume AbsLayerVol("AbsLayerVol", AbsLayer, description.material(x_abslayer.attr<std::string>(_U(material))));
+  AbsLayerVol.setVisAttributes(description, x_abslayer.visStr());
+  PlacedVolume AbsLayerPlaced = AbsLayerVol.placeVolume(AbsLayerVol, 1, Position( 0., 0., -CaloLayerZ / 2. + AbsLayerZ / 2.));
+  AbsLayerPlaced.addPhysVolID("abslayer",1);
+
+  Box SensLayer(SensLayerX / 2., SensLayerY / 2., SensLayerZ / 2.);
+  Volume SensLayerVol("SensLayerVol", SensLayer, description.material(x_senslayer.attr<std::string>(_U(material))));
+  SensLayerVol.setVisAttributes(description, x_senslayer.visStr());
+  PlacedVolume SensLayerPlaced = SensLayerVol.placeVolume(SensLayerVol, 1, Position(0., 0., CaloLayerZ / 2. - SensLayerZ / 2. ));
+  SensLayerPlaced.addPhysVolID("senslayer", 0);
+
 
   // Hands-on 2 solution
   // Uncomment the line below to include the solution
@@ -108,11 +125,10 @@ static Ref_t create_detector(Detector& description, xml_h e, SensitiveDetector s
   // After Hands-on 2 is done uncomment this code below
   // to make the layer sensitive. Check that your SensitiveLayer Volume
   // has the correct name "SensLayerVol"
-  /*
   if (islayersens) {
     SensLayerVol.setSensitiveDetector(sens);
   }
-  */
+
 
   // Finalize geometry
   //
