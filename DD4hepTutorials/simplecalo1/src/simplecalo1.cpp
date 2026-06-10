@@ -108,14 +108,14 @@ static Ref_t create_detector(Detector& description, xml_h e, SensitiveDetector s
   Box AbsLayer(AbsLayerX / 2., AbsLayerY / 2.0, AbsLayerZ / 2.0);
   Volume AbsLayerVol("AbsLayerVol", AbsLayer, description.material(x_abslayer.attr<std::string>(_U(material))));
   AbsLayerVol.setVisAttributes(description, x_abslayer.visStr());
-  PlacedVolume AbsLayerPlaced = AbsLayerVol.placeVolume(AbsLayerVol, 1, Position( 0., 0., -CaloLayerZ / 2. + AbsLayerZ / 2.));
+  PlacedVolume AbsLayerPlaced = CaloLayerVol.placeVolume(AbsLayerVol, 1, Position( 0., 0., -CaloLayerZ / 2. + AbsLayerZ / 2.));
   AbsLayerPlaced.addPhysVolID("abslayer",1);
 
   Box SensLayer(SensLayerX / 2., SensLayerY / 2., SensLayerZ / 2.);
   Volume SensLayerVol("SensLayerVol", SensLayer, description.material(x_senslayer.attr<std::string>(_U(material))));
   SensLayerVol.setVisAttributes(description, x_senslayer.visStr());
-  PlacedVolume SensLayerPlaced = SensLayerVol.placeVolume(SensLayerVol, 1, Position(0., 0., CaloLayerZ / 2. - SensLayerZ / 2. ));
-  SensLayerPlaced.addPhysVolID("senslayer", 0);
+  PlacedVolume SensLayerPlaced = CaloLayerVol.placeVolume(SensLayerVol, 1, Position(0., 0., CaloLayerZ / 2. - SensLayerZ / 2. ));
+  SensLayerPlaced.addPhysVolID("abslayer", 0);
 
 
   // Hands-on 2 solution
