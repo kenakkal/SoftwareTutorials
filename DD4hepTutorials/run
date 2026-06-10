@@ -1,0 +1,4 @@
+#!/bin/sh
+# Auto-generated script to set the environment before the execution of a command
+. /afs/cern.ch/user/k/kenakkal/DRDCalo_tutorials/SoftwareTutorials/DD4hepTutorials/softwaretutorialsenv.sh
+exec "$@"
