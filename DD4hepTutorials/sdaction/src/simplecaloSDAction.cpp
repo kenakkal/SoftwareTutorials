@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2020-2024 Key4hep-Project.
  *
@@ -28,7 +29,7 @@
 #include <cmath>
 
 // #define DEBUG
-
+// The code that runs every time a particle takes a step inside a senstive volume 
 namespace dd4hep {
 namespace sim {
   class simplecaloSDData {
@@ -49,6 +50,8 @@ namespace sim {
 
   // Function template specialization of Geant4SensitiveAction class.
   // Define actions
+  // Called once at the beginning of the simulation. Stores a pointer  to itself in m_userData; 
+  // DETAILED_MODE meaning full hit information (position, energy, time, etc.) is recorded, rather than just a summary
   template <>
   void Geant4SensitiveAction<simplecaloSDData>::initialize() {
     m_userData.sensitive = this;
@@ -57,6 +60,9 @@ namespace sim {
 
   // Function template specialization of Geant4SensitiveAction class.
   // Define collections created by this sensitivie action object
+  
+  // Tells G4 where to store the hits; creates a a hit colletcion named after the readout (simplecaloRO from the XML). 
+  // This is how hits end up in the output file under that name.
   template <>
   void Geant4SensitiveAction<simplecaloSDData>::defineCollections() {
     std::string ROname = m_sensitive.readout().name();
@@ -65,10 +71,16 @@ namespace sim {
 
   // Function template specialization of Geant4SensitiveAction class.
   // Method that accesses the G4Step object at each track step.
+
+  // process(): main function called at every step of the simulation for particles that are in a sensitive volume
+  // G4Step contains everything about one simulation step — where the particle is, how much energy it deposited, 
+  // what volume it's in, etc.
   template <>
   bool Geant4SensitiveAction<simplecaloSDData>::process(const G4Step* aStep, G4TouchableHistory* /*history*/) {
 
-#ifdef DEBUG
+#ifdef DEBUG // Only compiled in if DEBUG is defined at build time. Prints step-by-step info about the track, 
+// position, particle type, energy deposit, material, and volume for each step in the sensitive volume. 
+// Useful for understanding what's happening in the simulation at a detailed level.
     std::cout << "-------------------------------" << std::endl;
     std::cout << "--> simplecalo: track info: " << std::endl;
     std::cout << "----> Track #: " << aStep->GetTrack()->GetTrackID() << " "
@@ -85,17 +97,27 @@ namespace sim {
               << "Mat " << aStep->GetPreStepPoint()->GetMaterial()->GetName() << " "
               << "Vol " << aStep->GetPreStepPoint()->GetTouchableHandle()->GetVolume()->GetName() << " " << std::endl;
 #endif
-
+  // volumeID(aStep) returns the packed integer ID of the volume where the step occurred, this encodes which layer, 
+  // which sublayer, and which cell was hit
+  // BitFieldCoder knows how to unpack it: it reserves 5 bits for calolayer (up to 32 layers), 
+  // 1 bit for abslayer (0 or 1), and 10 bits for cellid (up to 1024 cells)
     dd4hep::BitFieldCoder decoder("calolayer:5,abslayer:1,cellid:10");
     auto VolID = volumeID(aStep);
 #ifdef DEBUG
-    auto CaloLayerID = decoder.get(VolID, "calolayer");
-    auto AbsLayerID = decoder.get(VolID, "abslayer");
-    auto CellID = decoder.get(VolID, "cellid");
+    auto CaloLayerID = decoder.get(VolID, "calolayer"); // which of the N layers was hit
+    auto AbsLayerID = decoder.get(VolID, "abslayer"); // whether the hit was in the absorber (1) or sensitive layer (0)
+    auto CellID = decoder.get(VolID, "cellid"); // which pixel (0-99) 
     std::cout << "--> CaloLayerID: " << CaloLayerID << " AbsLayerID " << AbsLayerID << " CellID " << CellID
               << std::endl;
 #endif
-
+  // Get the center of the cell's global position; 
+  // GetTouchableHandle() : acess to the full geo history; 
+  // theTouchable->GetHistory() : retrieves the full geometry navigation history: the chain of nested volumes the particle is 
+  // currently inside (e.g. CellVol → SensLayerVol → CaloLayerVol → CaloVol → World).
+  // GetTopTransform() : gets the transformation that converts from global coordinates → local coordinates of the current (innermost) volume, i.e. the cell.
+  // Inverse().TransformPoint(origin): tranforms local origin (center of teh cell) into global cordinates
+  // Cellpos is the position of the center of the cell in global coordinates, which is what we want to store in the hit info
+    
     G4TouchableHandle theTouchable = aStep->GetPreStepPoint()->GetTouchableHandle();
     G4ThreeVector origin(0., 0., 0.);
     G4ThreeVector CellPos = theTouchable->GetHistory()->GetTopTransform().Inverse().TransformPoint(origin);
@@ -111,6 +133,16 @@ namespace sim {
     // theTouchable->GetHistory()->GetTopTransform().TransformPoint(globalPosition);
     //
 
+    if (aStep->GetPreStepPoint()->GetGlobalTime() > 10) { // if the global time of the step is greater than 10 ns, skip recording this hit
+      return true; // "step processed successfully" from Geant4's pov, 
+      // but no hit gets created/updated, since we exit before reaching the hit-creation code 
+    } 
+    G4ThreeVector globalPosition = aStep->GetPreStepPoint()->GetPosition(); // get the global position of the step (not the cell center, but the actual point where the particle is)
+    G4ThreeVector localPosition = theTouchable->GetHistory()->GetTopTransform().TransformPoint(globalPosition); // transform the global position into local coordinates of the cell
+    // localPosition is the step's position relative to the center of the cell it's in
+    if (std::abs(localPosition.x()) > 30. || std::abs(localPosition.y()) > 30.) { // if the local x or y position is greater than 20 mm (i.e. within 2 cm of the cell border), skip recording this hit
+      return true;
+    }
     // Hands-on 5: solution
     //
     /*
@@ -129,8 +161,8 @@ namespace sim {
 
     // Create the hits and accumulate contributions from multiple steps
     //
-    Geant4HitCollection* coll = collection(m_collectionID);
-    Geant4Calorimeter::Hit* hit = coll->findByKey<Geant4Calorimeter::Hit>(VolID); // the hit
+    Geant4HitCollection* coll = collection(m_collectionID); // retrieves the collection where all hits for this readout (simplecaloRO) will be stored
+    Geant4Calorimeter::Hit* hit = coll->findByKey<Geant4Calorimeter::Hit>(VolID); // the hit; searches the collection: "has this cell already received a hit in this event?"
 
     if (!hit) { // if the hit does not exist yet, create it
       hit = new Geant4Calorimeter::Hit();
@@ -187,3 +219,18 @@ namespace sim {
 DECLARE_GEANT4SENSITIVE(SimpleCaloSDAction)
 
 //**************************************************************************
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
