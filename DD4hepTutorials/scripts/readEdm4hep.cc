@@ -59,7 +59,7 @@ void readEdm4hep(const std::string& filename) {
   // bit field decoder
   // Q1: which string should we use to decode the cellID for SimCalorimeterHitCollection in this file?
   // (hint: check the cellID encoding in the DD4hep XML file used for simulation)
-  auto decoder = dd4hep::DDSegmentation::BitFieldCoder("/*fill me*/");
+  auto decoder = dd4hep::DDSegmentation::BitFieldCoder("calolayer:5,abslayer:1,cellid:10");
 
   // define histograms
   // add more histograms as needed for your analysis
@@ -86,7 +86,7 @@ void readEdm4hep(const std::string& filename) {
     auto aframe = podio::Frame(reader.readEntry("events", iEvt));
 
     // Q2: how to get the SimCalorimeterHitCollection from the frame? (hint: check the collection name in the file)
-    const auto* simHits = static_cast<const edm4hep::SimCalorimeterHitCollection*>(aframe.get("/*fill me*/"));
+    const auto* simHits = static_cast<const edm4hep::SimCalorimeterHitCollection*>(aframe.get("simplecaloRO"));
 
     float totalEnergy = 0.f;
 
@@ -94,21 +94,34 @@ void readEdm4hep(const std::string& filename) {
     for (const auto& hit : *simHits) {
       // Q3: how to decode the cellID to get the calo layer, abs layer, and sub-cell id? (hint: use the bit field
       // decoder)
-      int caloLayer; /*fill me*/
-      int absLayer;  /*fill me*/
-      int subCellId; /*fill me*/
+      int caloLayer = decoder.get(hit.getCellID(), "calolayer");
+      int absLayer = decoder.get(hit.getCellID(), "abslayer");
+      int subCellId = decoder.get(hit.getCellID(), "cellid");
 
-      // std::cout << "Hit energy: " << hit.getEnergy() << " GeV, CellID: " << hit.getCellID()
-      //           << ", CaloLayer: " << caloLayer << ", AbsLayer: " << absLayer
-      //           << ", SubCellId: " << subCellId << std::endl;
+      std::cout << "Hit energy: " << hit.getEnergy() << " GeV, CellID: " << hit.getCellID()
+                 << ", CaloLayer: " << caloLayer << ", AbsLayer: " << absLayer
+                 << ", SubCellId: " << subCellId << std::endl;
 
       // Q4: fill the histograms defined above to analyze the energy distribution, layer-wise energy sum
+      totalEnergy += hit.getEnergy();
+      hEnergy->Fill(totalEnergy);
+      hLayerEnergySum->Fill(static_cast<float>(caloLayer) + 0.5, hit.getEnergy()); // +0.5 to fill the correct bin for integer layer number 
+
 
       // Q5: fill lateral shower shape per layer
       // Note: cellid = 10*x + y
+      int x = subCellId / 10;
+      int y = subCellId % 10;
+      unsigned int layerIndex = caloLayer - 1; // assuming caloLayer starts from 1
+      hLateralShapePerLayer[layerIndex]->Fill(static_cast<float>(x) + 0.5, static_cast<float>(y) + 0.5, hit.getEnergy()); // +0.5 to fill the correct bin for integer x,y      
 
       // Q6: how to access the contributions to each hit and fill the timing distribution of contributions? (hint: check
       // the edm4hep SimCalorimeterHit class definition for contributions) fill timing distribution of contributions
+      for (const auto& contrib : hit.getContributions()) {
+        std::cout << "  Contrib energy: " << contrib.getEnergy() << " GeV, PDG: " << contrib.getPDG() << std::endl;
+        hContributionTime->Fill(contrib.getTime(), contrib.getEnergy());
+      }
+
     } // loop hits
   } // loop events
 
