@@ -19,6 +19,7 @@
 
 # Create a Python script to run the EventStats algorithm
 # This script sets up the necessary services and configurations for the EventStats algorithm
+#This is basically the Steering File. 
 
 # How to write the script:
 # 1. Import necessary modules (e.g. services, gaudi functional, application manager)
@@ -34,8 +35,8 @@ from Configurables import EventDataSvc, ChronoAuditor, AuditorSvc
 io_svc = IOSvc("IOServices")
 
 # It is possible to set the input and output files directly in the script:
-io_svc.Input =  # TODO: Specify the input file path
-io_svc.Output = # TODO: Specify the output file path (tip: save it in the same folder as the input file with a different name)
+io_svc.Input = "data/simpleCalo_simulation.root"  # TODO: Specify the input file path
+io_svc.Output = "data/SimpleCalo_eventsStats.root"  # TODO: Specify the output file path (tip: save it in the same folder as the input file with a different name)
 
 # But Gaudi properties can also be set via command line arguments
 # Example: k4run runEventStats.py --IOServices.Input "input.root" --IOServices.Output "output.root"
@@ -58,10 +59,10 @@ from Configurables import EventStats
 
 eventStats_functional = EventStats(
     "EventStats",
-    InputCaloHitCollection = [??????],       # TODO: Specify the name of the input calorimeter hit collection
+    InputCaloHitCollection = ["simplecaloRO"],       # TODO: Specify the name of the input calorimeter hit collection
     OutputEnergyBarycentre = ["EnergyBarycentreX", "EnergyBarycentreY", "EnergyBarycentreZ"],
-    ?????? = [??????],                       # TODO: Add the output collection for total energy
-    ?????? = ??????,                         # TODO: Add the gaudi property to save histograms
+    OutputTotalEnergy = ["TotalEnergy"],                       # TODO: Add the output collection for total energy
+    SaveHistograms = True,                         # TODO: Add the gaudi property to save histograms
     OutputLevel = INFO
 )
 
@@ -76,7 +77,7 @@ eventStats_functional = EventStats(
 # 1. Fill in the missing values (??????)
 
 app_mgr = ApplicationMgr(
-    TopAlg = [??????],
+    TopAlg = [eventStats_functional],
     EvtSel = 'NONE',
     EvtMax = -1,
     ExtSvc = [EventDataSvc("EventDataSvc"), audsvc],
