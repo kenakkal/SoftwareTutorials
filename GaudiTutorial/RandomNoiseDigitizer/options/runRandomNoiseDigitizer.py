@@ -16,6 +16,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+#This is again a Steering File 
+
 from Gaudi.Configuration import INFO
 from k4FWCore import IOSvc, ApplicationMgr
 from Configurables import EventDataSvc, UniqueIDGenSvc, ChronoAuditor, AuditorSvc
@@ -25,8 +27,8 @@ audsvc = AuditorSvc()
 audsvc.Auditors = [chra]
 
 io_svc = IOSvc("IOSvc")
-io_svc.Input = "../../data/simpleCalo_simulation.root"
-io_svc.Output = "../../data/simpleCalo_noiseDigitizer.root"
+io_svc.Input = "data/simpleCalo_simulation.root"
+io_svc.Output = "data/simpleCalo_noiseDigitizer.root"
 
 from Configurables import EventStats
 
